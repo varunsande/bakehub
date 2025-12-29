@@ -86,7 +86,7 @@ const AdminProducts = () => {
       };
 
       if (editingProduct) {
-        await axios.put(`/api/products/${editingProduct._id}`, submitData);
+        await axios.put(`/products/${editingProduct._id}`, submitData);
         toast.success('Product updated');
       } else {
         await axios.post('/products', submitData);
