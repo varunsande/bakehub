@@ -76,6 +76,7 @@ if (smtpUser && smtpPass) {
   
   // Verify connection on startup (with timeout)
   // Don't block startup if verification fails - it might be a temporary network issue
+  // Note: verify() uses callback pattern, not Promise
   transporter.verify((error, success) => {
     if (error) {
       console.error("⚠️  SMTP Connection Error:", error.message);
@@ -84,9 +85,6 @@ if (smtpUser && smtpPass) {
     } else {
       console.log("✓ SMTP server connection verified");
     }
-  }).catch((err) => {
-    // Verification timeout or error - don't crash the app
-    console.warn("⚠️  SMTP verification skipped:", err.message);
   });
 }
 
