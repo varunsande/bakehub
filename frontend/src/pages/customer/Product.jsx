@@ -45,7 +45,7 @@ const Product = () => {
   // ✅ FIXED API PATH (/api added)
   const fetchProduct = async () => {
     try {
-      const response = await axios.get(`/api/products/${id}`);
+      const response = await axios.get(`/products/${id}`);
       setProduct(response.data);
     } catch (error) {
       console.error('Error fetching product:', error);
