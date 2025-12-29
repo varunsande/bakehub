@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import * as brevo from "@getbrevo/brevo";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,7 +12,12 @@ const rootEnvPath = path.join(__dirname, "..", "..", ".env");
 dotenv.config({ path: backendEnvPath });
 dotenv.config({ path: rootEnvPath, override: false });
 
-// Get environment variables (support both BREVO_* and generic SMTP_* for backward compatibility)
+// Get environment variables
+// For Brevo API: use BREVO_API_KEY or BREVO_SMTP_PASS (Brevo uses SMTP password as API key)
+// For SMTP: use SMTP_* or BREVO_SMTP_* variables
+const brevoApiKey = process.env.BREVO_API_KEY || process.env.BREVO_SMTP_PASS;
+const useApi = process.env.USE_EMAIL_API !== "false"; // Default to API (true), set to "false" to use SMTP
+
 const smtpHost = process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST || "smtp-relay.brevo.com";
 const smtpPort = parseInt(process.env.SMTP_PORT || process.env.BREVO_SMTP_PORT || "587", 10);
 const smtpUser = process.env.SMTP_USER || process.env.BREVO_SMTP_USER;
@@ -27,15 +33,29 @@ const smtpSecure = process.env.SMTP_SECURE === "true"
   ? false 
   : smtpPort === 465; // Default: secure for 465, not secure for 587
 
+// Initialize Brevo API client if API key is available
+let brevoApi = null;
+if (brevoApiKey && useApi) {
+  try {
+    brevoApi = new brevo.TransactionalEmailsApi();
+    brevoApi.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, brevoApiKey.replace(/^["']|["']$/g, ''));
+    console.log("✓ Email Service: Using Brevo HTTP API (works on cloud providers)");
+  } catch (error) {
+    console.error("⚠️  Failed to initialize Brevo API:", error.message);
+  }
+}
+
 // Validate environment variables
-if (!smtpUser || !smtpPass) {
+if (useApi && brevoApiKey) {
+  console.log("✓ Email Service Configuration: Brevo API");
+} else if (!smtpUser || !smtpPass) {
   console.error("⚠️  Email Service Configuration Error:");
   console.error(`   SMTP_USER: ${smtpUser ? '✓ Set' : '✗ Missing'}`);
   console.error(`   SMTP_PASS: ${smtpPass ? '✓ Set' : '✗ Missing'}`);
   console.error("   Please check your .env file in the backend directory.");
-  console.error("   Required: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS");
+  console.error("   Required: BREVO_API_KEY (or BREVO_SMTP_PASS) for API mode, or SMTP credentials for SMTP mode");
 } else {
-  console.log("✓ Email Service Configuration:");
+  console.log("✓ Email Service Configuration: SMTP");
   console.log(`   Host: ${smtpHost}`);
   console.log(`   Port: ${smtpPort} (Secure: ${smtpSecure})`);
   console.log(`   User: ${smtpUser}`);
@@ -105,27 +125,67 @@ if (smtpUser && smtpPass) {
 
 // -------------------- OTP EMAIL --------------------
 export const sendOTP = async (email, otp) => {
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif">
+      <h2>🔐 Your OTP Code</h2>
+      <p>Use the following OTP to login:</p>
+      <h1 style="letter-spacing: 4px">${otp}</h1>
+      <p>This OTP is valid for 5 minutes.</p>
+    </div>
+  `;
+
+  // Try Brevo API first (works on cloud providers)
+  if (brevoApi && useApi) {
+    try {
+      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      sendSmtpEmail.subject = "Your BakeHub OTP";
+      sendSmtpEmail.htmlContent = htmlContent;
+      // Use verified sender email from Brevo account, or use SMTP_USER if available
+      const senderEmail = process.env.BREVO_SENDER_EMAIL || smtpUser || "varunsandeshtalluru@gmail.com";
+      sendSmtpEmail.sender = { name: "BakeHub OTP", email: senderEmail };
+      sendSmtpEmail.to = [{ email: email }];
+
+      console.log(`Attempting to send OTP via Brevo API to ${email} from ${senderEmail}`);
+      const result = await brevoApi.sendTransacEmail(sendSmtpEmail);
+      console.log("✓ Brevo API email sent successfully:", result);
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Brevo API error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.body,
+        statusCode: error.response?.statusCode,
+        body: error.body
+      });
+      // Don't fall through silently - return error if API fails
+      // Only fall through to SMTP if it's a configuration issue, not an API error
+      if (error.response?.statusCode === 401 || error.response?.statusCode === 403) {
+        return {
+          success: false,
+          error: "Failed to send OTP",
+          details: `Brevo API authentication failed: ${error.message}. Check your BREVO_API_KEY.`,
+        };
+      }
+      // For other API errors, log and fall through to SMTP
+      console.warn("Brevo API failed, falling back to SMTP...");
+    }
+  }
+
+  // Fallback to SMTP if API not available or failed
   if (!transporter) {
     return {
       success: false,
       error: "Failed to send OTP",
-      details: "Email service not configured. Missing SMTP credentials.",
+      details: "Email service not configured. Missing credentials.",
     };
   }
 
   try {
     const mailOptions = {
-      from: `"BakeHub OTP" <no-reply@bakehub.com>`,
+      from: `"BakeHub OTP" <varunsandeshtalluru@gmail.com>`,
       to: email,
       subject: "Your BakeHub OTP",
-      html: `
-        <div style="font-family: Arial, sans-serif">
-          <h2>🔐 Your OTP Code</h2>
-          <p>Use the following OTP to login:</p>
-          <h1 style="letter-spacing: 4px">${otp}</h1>
-          <p>This OTP is valid for 5 minutes.</p>
-        </div>
-      `,
+      html: htmlContent,
     };
 
     // Send with timeout handling
@@ -160,28 +220,67 @@ export const sendOTP = async (email, otp) => {
 
 // ---------------- ORDER CONFIRMATION EMAIL ----------------
 export const sendOrderConfirmation = async (email, order) => {
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif">
+      <h2>🎂 Order Confirmed!</h2>
+      <p>Thank you for your order.</p>
+      <p><strong>Order ID:</strong> ${order._id}</p>
+      <p><strong>Total:</strong> ₹${order.totalAmount}</p>
+      <p>We'll deliver your order soon 🚚</p>
+    </div>
+  `;
+
+  // Try Brevo API first (works on cloud providers)
+  if (brevoApi && useApi) {
+    try {
+      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      sendSmtpEmail.subject = "Your BakeHub Order Confirmation";
+      sendSmtpEmail.htmlContent = htmlContent;
+      // Use verified sender email from Brevo account, or use SMTP_USER if available
+      const senderEmail = process.env.BREVO_SENDER_EMAIL || smtpUser || "varunsandeshtalluru@gmail.com";
+      sendSmtpEmail.sender = { name: "BakeHub Orders", email: senderEmail };
+      sendSmtpEmail.to = [{ email: email }];
+
+      console.log(`Attempting to send order confirmation via Brevo API to ${email} from ${senderEmail}`);
+      const result = await brevoApi.sendTransacEmail(sendSmtpEmail);
+      console.log("✓ Brevo API email sent successfully:", result);
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Brevo API error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.body,
+        statusCode: error.response?.statusCode,
+        body: error.body
+      });
+      // Don't fall through silently - return error if API fails
+      if (error.response?.statusCode === 401 || error.response?.statusCode === 403) {
+        return {
+          success: false,
+          error: "Failed to send order confirmation",
+          details: `Brevo API authentication failed: ${error.message}. Check your BREVO_API_KEY.`,
+        };
+      }
+      // For other API errors, log and fall through to SMTP
+      console.warn("Brevo API failed, falling back to SMTP...");
+    }
+  }
+
+  // Fallback to SMTP if API not available or failed
   if (!transporter) {
     return {
       success: false,
       error: "Failed to send order confirmation",
-      details: "Email service not configured. Missing SMTP credentials.",
+      details: "Email service not configured. Missing credentials.",
     };
   }
 
   try {
     const mailOptions = {
-      from: `"BakeHub Orders" <no-reply@bakehub.com>`,
+      from: `"BakeHub Orders" <varunsandeshtalluru@gmail.com>`,
       to: email,
       subject: "Your BakeHub Order Confirmation",
-      html: `
-        <div style="font-family: Arial, sans-serif">
-          <h2>🎂 Order Confirmed!</h2>
-          <p>Thank you for your order.</p>
-          <p><strong>Order ID:</strong> ${order._id}</p>
-          <p><strong>Total:</strong> ₹${order.totalAmount}</p>
-          <p>We'll deliver your order soon 🚚</p>
-        </div>
-      `,
+      html: htmlContent,
     };
 
     // Send with timeout handling
