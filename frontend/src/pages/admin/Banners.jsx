@@ -33,7 +33,7 @@ const AdminBanners = () => {
 
   const fetchBanners = async () => {
     try {
-      const res = await axios.get('/api/banners/all');
+      const res = await axios.get('/banners/all');
       setBanners(res.data);
     } catch (error) {
       console.error('Error fetching banners:', error);
