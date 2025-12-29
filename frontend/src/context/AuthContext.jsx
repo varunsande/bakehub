@@ -2,9 +2,9 @@ import { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-// ==================
-// Context setup
-// ==================
+/* =====================
+   Context
+===================== */
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
@@ -15,9 +15,9 @@ export const useAuth = () => {
   return ctx;
 };
 
-// ==================
-// Axios base config
-// ==================
+/* =====================
+   Axios Instance
+===================== */
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const api = axios.create({
@@ -25,14 +25,14 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// ==================
-// Provider
-// ==================
+/* =====================
+   Provider
+===================== */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user on refresh
+  /* Load user on refresh */
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (token) {
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
   const sendOTP = async (email) => {
     try {
       await api.post("/auth/send-otp", { email });
-      toast.success("OTP sent to email");
+      toast.success("OTP sent");
       return true;
     } catch (err) {
       toast.error(err.response?.data?.message || "OTP failed");
@@ -72,9 +72,10 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("accessToken", res.data.accessToken);
       localStorage.setItem("refreshToken", res.data.refreshToken);
 
-      api.defaults.headers.common.Authorization = `Bearer ${res.data.accessToken}`;
-      setUser(res.data.user);
+      api.defaults.headers.common.Authorization =
+        `Bearer ${res.data.accessToken}`;
 
+      setUser(res.data.user);
       toast.success("Login successful");
       return true;
     } catch {
@@ -90,13 +91,14 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  // ==================
-  // Axios refresh token interceptor
-  // ==================
+  /* =====================
+     Refresh Token Interceptor
+  ===================== */
   api.interceptors.response.use(
     (res) => res,
     async (error) => {
       const original = error.config;
+
       if (error.response?.status === 401 && !original._retry) {
         original._retry = true;
         try {
@@ -104,14 +106,17 @@ export const AuthProvider = ({ children }) => {
           const res = await api.post("/auth/refresh-token", { refreshToken });
 
           localStorage.setItem("accessToken", res.data.accessToken);
-          api.defaults.headers.common.Authorization = `Bearer ${res.data.accessToken}`;
-          original.headers.Authorization = `Bearer ${res.data.accessToken}`;
+          api.defaults.headers.common.Authorization =
+            `Bearer ${res.data.accessToken}`;
+          original.headers.Authorization =
+            `Bearer ${res.data.accessToken}`;
 
           return api(original);
         } catch {
           logout();
         }
       }
+
       return Promise.reject(error);
     }
   );
