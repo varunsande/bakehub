@@ -15,7 +15,9 @@ dotenv.config({ path: rootEnvPath, override: false });
 const smtpHost = process.env.SMTP_HOST || process.env.BREVO_SMTP_HOST || "smtp-relay.brevo.com";
 const smtpPort = parseInt(process.env.SMTP_PORT || process.env.BREVO_SMTP_PORT || "587", 10);
 const smtpUser = process.env.SMTP_USER || process.env.BREVO_SMTP_USER;
-const smtpPass = process.env.SMTP_PASS || process.env.BREVO_SMTP_PASS;
+// Remove quotes from password if present (common .env issue)
+const smtpPassRaw = process.env.SMTP_PASS || process.env.BREVO_SMTP_PASS;
+const smtpPass = smtpPassRaw ? smtpPassRaw.replace(/^["']|["']$/g, '') : null;
 
 // Determine secure flag based on port (465 = SSL, 587 = STARTTLS)
 // Allow override via env var if needed
@@ -32,6 +34,11 @@ if (!smtpUser || !smtpPass) {
   console.error(`   SMTP_PASS: ${smtpPass ? '✓ Set' : '✗ Missing'}`);
   console.error("   Please check your .env file in the backend directory.");
   console.error("   Required: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS");
+} else {
+  console.log("✓ Email Service Configuration:");
+  console.log(`   Host: ${smtpHost}`);
+  console.log(`   Port: ${smtpPort} (Secure: ${smtpSecure})`);
+  console.log(`   User: ${smtpUser}`);
 }
 
 // SMTP transporter (only create if credentials are available)
@@ -68,6 +75,14 @@ if (smtpUser && smtpPass) {
       // Don't reject unauthorized certificates (some SMTP servers have self-signed certs)
       rejectUnauthorized: false,
       // Additional TLS options for better compatibility
+      minVersion: 'TLSv1.2',
+    };
+  }
+
+  // For port 465 (SSL) - Gmail and other providers
+  if (smtpPort === 465 && smtpSecure) {
+    transporterConfig.tls = {
+      rejectUnauthorized: false, // Gmail uses valid certs, but this helps with connection issues
       minVersion: 'TLSv1.2',
     };
   }
