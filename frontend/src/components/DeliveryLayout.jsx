@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import logo from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
 
 const DeliveryLayout = () => {
@@ -11,7 +12,7 @@ const DeliveryLayout = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <Link to="/delivery" className="text-xl font-bold text-primary-600">
-              BakeHub Delivery
+              <span className="flex items-center gap-2"><img src={logo} alt="Logo" className="h-12 w-auto object-contain inline" /> Delivery</span>
             </Link>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600">{user?.name || user?.email}</span>

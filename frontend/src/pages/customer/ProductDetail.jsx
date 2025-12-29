@@ -23,9 +23,18 @@ const ProductDetail = () => {
   const [isEggless, setIsEggless] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [selectedPreOrderDate, setSelectedPreOrderDate] = useState('');
+  const [selectedPreOrderTime, setSelectedPreOrderTime] = useState('09:00-12:00');
 
   useEffect(() => {
     fetchProduct();
+    // Scroll to top on mobile when product detail mounts
+    if (typeof window !== 'undefined') {
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
   }, [id]);
 
   useEffect(() => {
@@ -71,13 +80,25 @@ const ProductDetail = () => {
       return;
     }
 
-    // Set default delivery date (tomorrow)
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const deliveryDate = tomorrow.toISOString().split('T')[0];
-
-    // Set default delivery time
-    const deliveryTime = '09:00-12:00';
+    let deliveryDate, deliveryTime;
+    if (isPreOrder) {
+      if (!selectedPreOrderDate) {
+        toast.error('Please select your preferred delivery date');
+        return;
+      }
+      if (!selectedPreOrderTime) {
+        toast.error('Please select your preferred delivery time');
+        return;
+      }
+      deliveryDate = selectedPreOrderDate;
+      deliveryTime = selectedPreOrderTime;
+    } else {
+      // Set default delivery date (tomorrow)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      deliveryDate = tomorrow.toISOString().split('T')[0];
+      deliveryTime = '09:00-12:00';
+    }
 
     const weight = selectedWeight || 'Standard';
     const price = selectedPrice || product.price;
@@ -90,7 +111,9 @@ const ProductDetail = () => {
       price: price,
       image: product.images?.[0] || '',
       deliveryDate,
-      deliveryTime
+      deliveryTime,
+      isPreOrder,
+      preOrderDeliveryDate: product.preOrderDeliveryDate || null
     };
 
     try {
@@ -137,6 +160,8 @@ const ProductDetail = () => {
 
   const images = product.images && product.images.length > 0 ? product.images : [];
   const hasWeightOptions = product.weightOptions && product.weightOptions.length > 0;
+  const isPreOrder = product.isPreOrder;
+  const preOrderDeliveryDate = product.preOrderDeliveryDate ? new Date(product.preOrderDeliveryDate).toLocaleDateString() : null;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -192,6 +217,13 @@ const ProductDetail = () => {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">{product.name}</h1>
           {product.category && (
             <p className="text-gray-500 mb-4">{product.category.name}</p>
+          )}
+
+          {/* Pre-order Message */}
+          {isPreOrder && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-800">
+              <strong>This product is available for pre-order.</strong>
+            </div>
           )}
 
           {/* Price */}
@@ -281,8 +313,43 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          {/* Stock Status */}
-          {product.stock !== undefined && (
+          {/* Stock Status or Pre-order */}
+          {isPreOrder ? (
+            <div className="mb-6">
+              <span className="text-blue-600 font-semibold">Pre-order available</span>
+              {/* Customer chooses estimated delivery date and time */}
+              <div className="mt-3">
+                <label className="block text-sm font-medium mb-2 text-blue-700">Choose your preferred delivery date:</label>
+                <input
+                  type="date"
+                  min={product.preOrderAvailableDate ? product.preOrderAvailableDate.slice(0, 10) : ''}
+                  max={product.preOrderDeliveryDate ? product.preOrderDeliveryDate.slice(0, 10) : ''}
+                  value={selectedPreOrderDate}
+                  onChange={e => setSelectedPreOrderDate(e.target.value)}
+                  className="px-4 py-2 border rounded-lg"
+                />
+                {selectedPreOrderDate && (
+                  <div className="text-xs text-blue-700 mt-1">Selected: {new Date(selectedPreOrderDate).toLocaleDateString()}</div>
+                )}
+              </div>
+              <div className="mt-3">
+                <label className="block text-sm font-medium mb-2 text-blue-700">Choose your preferred delivery time:</label>
+                <select
+                  value={selectedPreOrderTime}
+                  onChange={e => setSelectedPreOrderTime(e.target.value)}
+                  className="px-4 py-2 border rounded-lg"
+                >
+                  <option value="09:00-12:00">09:00-12:00</option>
+                  <option value="12:00-15:00">12:00-15:00</option>
+                  <option value="15:00-18:00">15:00-18:00</option>
+                  <option value="18:00-21:00">18:00-21:00</option>
+                </select>
+                {selectedPreOrderTime && (
+                  <div className="text-xs text-blue-700 mt-1">Selected: {selectedPreOrderTime}</div>
+                )}
+              </div>
+            </div>
+          ) : product.stock !== undefined && (
             <div className="mb-6">
               {product.stock > 0 ? (
                 <span className="text-green-600 font-semibold">In Stock ({product.stock} available)</span>
@@ -292,14 +359,24 @@ const ProductDetail = () => {
             </div>
           )}
 
-          {/* Add to Cart Button */}
-          <button
-            onClick={handleAddToCart}
-            disabled={product.stock === 0}
-            className="w-full py-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold text-lg transition"
-          >
-            Add to Cart
-          </button>
+          {/* Add to Cart & Pre-order Buttons */}
+          <div className="flex gap-4">
+            <button
+              onClick={handleAddToCart}
+              disabled={product.stock === 0}
+              className="flex-1 py-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold text-lg transition"
+            >
+              Add to Cart
+            </button>
+            {isPreOrder && (
+              <button
+                onClick={handleAddToCart}
+                className="flex-1 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-lg transition"
+              >
+                Pre-order Now
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

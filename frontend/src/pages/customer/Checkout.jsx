@@ -667,9 +667,19 @@ const Checkout = () => {
             <h2 className="text-xl font-bold mb-4">Order Summary</h2>
             <div className="space-y-2 mb-4">
               {cartItems.map((item, index) => (
-                <div key={index} className="flex justify-between text-sm">
-                  <span>{item.name} x{item.quantity}</span>
-                  <span>₹{item.price * item.quantity}</span>
+                <div key={index} className="flex flex-col gap-0.5 mb-2">
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="flex items-center gap-2">
+                      {item.name} x{item.quantity}
+                      {item.isPreOrder && (
+                        <span className="ml-2 px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">Pre-order</span>
+                      )}
+                    </span>
+                    <span>₹{item.price * item.quantity}</span>
+                  </div>
+                  {item.isPreOrder ? (
+                    <span className="text-xs text-blue-700 ml-1">Estimated delivery: {item.deliveryDate ? new Date(item.deliveryDate).toLocaleDateString() : (item.preOrderDeliveryDate ? new Date(item.preOrderDeliveryDate).toLocaleDateString() : 'TBA')}</span>
+                  ) : null}
                 </div>
               ))}
               <div className="border-t pt-2 flex justify-between">

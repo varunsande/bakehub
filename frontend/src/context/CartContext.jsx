@@ -67,7 +67,7 @@ export const CartProvider = ({ children }) => {
     );
   };
 
-  const updateQuantity = (productId, weight, isEggless, quantity) => {
+  const updateQuantity = (productId, weight, isEggless, quantity, deliveryDate) => {
     if (quantity <= 0) {
       removeFromCart(productId, weight, isEggless);
       return;
@@ -78,7 +78,7 @@ export const CartProvider = ({ children }) => {
         item.productId === productId &&
         item.weight === weight &&
         item.isEggless === isEggless
-          ? { ...item, quantity }
+          ? { ...item, quantity, ...(deliveryDate ? { deliveryDate } : {}) }
           : item
       )
     );

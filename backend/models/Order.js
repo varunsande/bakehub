@@ -102,8 +102,7 @@ const orderSchema = new mongoose.Schema({
     required: true
   },
   deliveryTime: {
-    type: String,
-    required: true
+    type: String
   }
 }, {
   timestamps: true

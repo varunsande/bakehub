@@ -55,6 +55,21 @@ const productSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isPreOrder: {
+    type: Boolean,
+    default: false,
+    description: 'If true, product is available for pre-order.'
+  },
+  preOrderAvailableDate: {
+    type: Date,
+    default: null,
+    description: 'Date from which pre-order is available.'
+  },
+  preOrderDeliveryDate: {
+    type: Date,
+    default: null,
+    description: 'Estimated delivery date for pre-orders.'
   }
 }, {
   timestamps: true

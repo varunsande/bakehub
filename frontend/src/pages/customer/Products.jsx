@@ -12,6 +12,13 @@ const Products = () => {
 
   useEffect(() => {
     fetchData();
+    // Scroll to top on mobile when category changes
+    if (typeof window !== 'undefined') {
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
   }, [selectedCategory]);
 
   const fetchData = async () => {
@@ -65,9 +72,9 @@ const Products = () => {
             {categories.map((category) => (
               <button
                 key={category._id}
-                onClick={() => handleCategoryFilter(category._id)}
+                onClick={() => handleCategoryFilter(category.name)}
                 className={`px-4 py-2 rounded-lg border-2 transition ${
-                  selectedCategory === category._id
+                  selectedCategory === category.name
                     ? 'border-primary-600 bg-primary-50 text-primary-700'
                     : 'border-gray-300 hover:border-primary-400'
                 }`}

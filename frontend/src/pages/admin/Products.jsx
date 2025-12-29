@@ -28,7 +28,10 @@ const AdminProducts = () => {
     hasEggOption: true,
     stock: 0,
     isActive: true,
-    images: []
+    images: [],
+    isPreOrder: false,
+    preOrderAvailableDate: '',
+    preOrderDeliveryDate: ''
   });
 
   useEffect(() => {
@@ -113,7 +116,10 @@ const AdminProducts = () => {
       hasEggOption: product.hasEggOption !== false,
       stock: product.stock || 0,
       isActive: product.isActive !== false,
-      images: product.images?.length > 0 ? product.images : []
+      images: product.images?.length > 0 ? product.images : [],
+      isPreOrder: product.isPreOrder || false,
+      preOrderAvailableDate: product.preOrderAvailableDate ? product.preOrderAvailableDate.slice(0, 10) : '',
+      preOrderDeliveryDate: product.preOrderDeliveryDate ? product.preOrderDeliveryDate.slice(0, 10) : ''
     });
     setImageFiles([]);
     setShowForm(true);
@@ -142,7 +148,10 @@ const AdminProducts = () => {
       hasEggOption: true,
       stock: 0,
       isActive: true,
-      images: []
+      images: [],
+      isPreOrder: false,
+      preOrderAvailableDate: '',
+      preOrderDeliveryDate: ''
     });
     setImageFiles([]);
     setEditingProduct(null);
@@ -308,7 +317,24 @@ const AdminProducts = () => {
                   >
                     <option value="½ kg">½ kg</option>
                     <option value="1 kg">1 kg</option>
+                    <option value="1½ kg">1½ kg</option>
                     <option value="2 kg">2 kg</option>
+                    <option value="2½ kg">2½ kg</option>
+                    <option value="3 kg">3 kg</option>
+                    <option value="3½ kg">3½ kg</option>
+                    <option value="4 kg">4 kg</option>
+                    <option value="4½ kg">4½ kg</option>
+                    <option value="5 kg">5 kg</option>
+                    <option value="5½ kg">5½ kg</option>
+                    <option value="6 kg">6 kg</option>
+                    <option value="6½ kg">6½ kg</option>
+                    <option value="7 kg">7 kg</option>
+                    <option value="7½ kg">7½ kg</option>
+                    <option value="8 kg">8 kg</option>
+                    <option value="8½ kg">8½ kg</option>
+                    <option value="9 kg">9 kg</option>
+                    <option value="9½ kg">9½ kg</option>
+                    <option value="10 kg">10 kg</option>
                   </select>
                   <input
                     type="number"
@@ -338,34 +364,67 @@ const AdminProducts = () => {
                   className="w-full px-4 py-2 border rounded-lg"
                 />
               </div>
-              <div className="flex items-center space-x-4 pt-6">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.isEggless}
-                    onChange={(e) => setFormData({ ...formData, isEggless: e.target.checked })}
-                    className="mr-2"
-                  />
-                  Eggless
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.hasEggOption}
-                    onChange={(e) => setFormData({ ...formData, hasEggOption: e.target.checked })}
-                    className="mr-2"
-                  />
-                  Has Egg Option
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                    className="mr-2"
-                  />
-                  Active
-                </label>
+              <div className="flex flex-col gap-2 pt-6">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.isEggless}
+                      onChange={(e) => setFormData({ ...formData, isEggless: e.target.checked })}
+                      className="mr-2"
+                    />
+                    Eggless
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasEggOption}
+                      onChange={(e) => setFormData({ ...formData, hasEggOption: e.target.checked })}
+                      className="mr-2"
+                    />
+                    Has Egg Option
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.isActive}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      className="mr-2"
+                    />
+                    Active
+                  </label>
+                </div>
+                <div className="flex items-center gap-4 mt-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.isPreOrder}
+                      onChange={(e) => setFormData({ ...formData, isPreOrder: e.target.checked })}
+                      className="mr-2"
+                    />
+                    Pre-order
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <span>Pre-order Available Date:</span>
+                    <input
+                      type="date"
+                      value={formData.preOrderAvailableDate}
+                      onChange={(e) => setFormData({ ...formData, preOrderAvailableDate: e.target.value })}
+                      className="px-2 py-1 border rounded"
+                      disabled={!formData.isPreOrder}
+                    />
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <span>Pre-order Delivery Date:</span>
+                    <input
+                      type="date"
+                      value={formData.preOrderDeliveryDate}
+                      onChange={(e) => setFormData({ ...formData, preOrderDeliveryDate: e.target.value })}
+                      className="px-2 py-1 border rounded"
+                      disabled={!formData.isPreOrder}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
             <div>
@@ -526,11 +585,16 @@ const AdminProducts = () => {
                   ₹{product.weightOptions?.[0]?.price || product.price}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {product.isActive ? 'Active' : 'Inactive'}
-                  </span>
+                  <div className="flex flex-col gap-1">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {product.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    {product.isPreOrder && (
+                      <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 mt-1">Pre-order</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <button

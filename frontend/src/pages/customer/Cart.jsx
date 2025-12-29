@@ -7,6 +7,11 @@ const Cart = () => {
   const { cartItems, removeFromCart, updateQuantity, getTotal, clearCart } = useCart();
   const [pincodeAvailable, setPincodeAvailable] = useState(null);
 
+  // Check if any pre-order item is missing delivery date
+  const missingEstimatedDelivery = cartItems.some(
+    (item) => item.isPreOrder && !item.deliveryDate
+  );
+
   if (cartItems.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
@@ -47,13 +52,35 @@ const Cart = () => {
                   />
                 )}
                 <div className="flex-1">
-                  <h3 className="font-semibold">{item.name}</h3>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    {item.name}
+                    {item.isPreOrder && (
+                      <span className="ml-2 px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">Pre-order</span>
+                    )}
+                  </h3>
                   <p className="text-sm text-gray-600">
                     {item.weight} {item.isEggless && '• Eggless'}
                   </p>
-                  <p className="text-sm text-gray-600">
-                    Delivery: {item.deliveryDate} {item.deliveryTime}
-                  </p>
+                      {item.isPreOrder ? (
+                        <div className="text-sm text-blue-700 flex flex-col gap-1">
+                          <span>Estimated delivery:</span>
+                          <input
+                            type="date"
+                            min={item.preOrderAvailableDate ? item.preOrderAvailableDate.slice(0, 10) : ''}
+                            max={item.preOrderDeliveryDate ? item.preOrderDeliveryDate.slice(0, 10) : ''}
+                            value={item.deliveryDate || ''}
+                            onChange={e => updateQuantity(item.productId, item.weight, item.isEggless, item.quantity, e.target.value)}
+                            className="px-2 py-1 border rounded w-40"
+                          />
+                          {item.deliveryDate && (
+                            <span className="text-xs mt-1">Selected: {new Date(item.deliveryDate).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-600">
+                          Delivery: {item.deliveryDate} {item.deliveryTime}
+                        </p>
+                      )}
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -102,21 +129,24 @@ const Cart = () => {
               </div>
             </div>
 
-            {!pincodeAvailable?.available && (
+
+            {(!pincodeAvailable?.available || missingEstimatedDelivery) && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                Please check delivery availability before checkout
+                {!pincodeAvailable?.available
+                  ? 'Please check delivery availability before checkout'
+                  : 'Please select Estimated delivery date for all pre-order items to proceed.'}
               </div>
             )}
 
             <Link
               to="/checkout"
               className={`block w-full text-center px-6 py-3 rounded-lg font-semibold ${
-                pincodeAvailable?.available
+                pincodeAvailable?.available && !missingEstimatedDelivery
                   ? 'bg-primary-600 text-white hover:bg-primary-700'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
               onClick={(e) => {
-                if (!pincodeAvailable?.available) {
+                if (!pincodeAvailable?.available || missingEstimatedDelivery) {
                   e.preventDefault();
                 }
               }}

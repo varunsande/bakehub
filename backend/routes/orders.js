@@ -6,12 +6,14 @@ import DeliveryPincode from '../models/DeliveryPincode.js';
 import Address from '../models/Address.js';
 import User from '../models/User.js';
 import { authenticate, authorize } from '../middleware/auth.js';
+import { sendOrderConfirmation } from '../utils/emailService.js';
 
 const router = express.Router();
 
 // Create order
 router.post('/', authenticate, authorize('customer'), async (req, res) => {
   try {
+
     const {
       items,
       addressId,
@@ -22,6 +24,11 @@ router.post('/', authenticate, authorize('customer'), async (req, res) => {
       razorpayOrderId,
       razorpayPaymentId
     } = req.body;
+
+    // Validate deliveryDate
+    if (!deliveryDate || isNaN(new Date(deliveryDate).getTime())) {
+      return res.status(400).json({ message: 'Invalid or missing deliveryDate' });
+    }
 
     // Check delivery pincode
     const address = await Address.findById(addressId);
@@ -108,7 +115,33 @@ router.post('/', authenticate, authorize('customer'), async (req, res) => {
       orderStatus: 'Pending'
     });
 
+
     await order.save();
+
+    // Send order confirmation email to customer and admin(s)
+    try {
+      const user = await User.findById(req.user._id);
+      const adminUsers = await User.find({ role: 'superAdmin', isActive: true });
+      const adminEmails = adminUsers.map(admin => admin.email).filter(Boolean);
+
+      const orderMailData = {
+        orderId: order._id,
+        total: order.total,
+        deliveryDate: order.deliveryDate ? order.deliveryDate.toLocaleDateString() : '',
+        deliveryTime: order.deliveryTime || ''
+      };
+
+      // Send to customer
+      if (user && user.email) {
+        await sendOrderConfirmation(user.email, orderMailData);
+      }
+      // Send to all admins
+      for (const adminEmail of adminEmails) {
+        await sendOrderConfirmation(adminEmail, orderMailData);
+      }
+    } catch (emailError) {
+      console.error('Order confirmation email error:', emailError);
+    }
 
     // Update product order counts
     for (const item of items) {

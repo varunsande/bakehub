@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import Banner from '../../components/Banner';
@@ -15,12 +15,45 @@ const getImageUrl = (imagePath) => {
 };
 
 const Home = () => {
+    // Scroll to top on mount for mobile devices
+    useEffect(() => {
+      if (typeof window !== 'undefined') {
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
+    }, []);
   const [categories, setCategories] = useState([]);
   const [bestsellers, setBestsellers] = useState([]);
   const [banners, setBanners] = useState([]);
+  const [currentBanner, setCurrentBanner] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [featuredImage, setFeaturedImage] = useState(null);
+  const autoplayRef = useRef();
+    // Autoplay effect for banners
+    useEffect(() => {
+      if (banners.length <= 1) return;
+      let paused = false;
+      const play = () => {
+        if (!paused) {
+          setCurrentBanner((prev) => (prev + 1) % banners.length);
+        }
+      };
+      autoplayRef.current = setInterval(play, 2500);
+      return () => clearInterval(autoplayRef.current);
+    }, [banners]);
 
+    // Pause on hover handlers
+    const handleBannerMouseEnter = () => {
+      if (autoplayRef.current) clearInterval(autoplayRef.current);
+    };
+    const handleBannerMouseLeave = () => {
+      if (banners.length > 1) {
+        autoplayRef.current = setInterval(() => {
+          setCurrentBanner((prev) => (prev + 1) % banners.length);
+        }, 2500);
+      }
+    };
   useEffect(() => {
     fetchData();
   }, []);
@@ -36,13 +69,6 @@ const Home = () => {
       setCategories(categoriesRes.data);
       setBestsellers(bestsellersRes.data);
       setBanners(bannersRes.data);
-      
-      // Use first bestseller image as featured image, or first banner image
-      if (bestsellersRes.data.length > 0 && bestsellersRes.data[0].images && bestsellersRes.data[0].images.length > 0) {
-        setFeaturedImage(getImageUrl(bestsellersRes.data[0].images[0]));
-      } else if (bannersRes.data.length > 0 && bannersRes.data[0].image) {
-        setFeaturedImage(getImageUrl(bannersRes.data[0].image));
-      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -59,28 +85,26 @@ const Home = () => {
   }
 
   return (
-    <div>
+    <div className="bg-white">
       {/* Hero Section */}
-      <section className="bg-stone-50 py-12 md:py-20">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
+      <section className="bg-[#fffaf5] py-14 md:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <div className="grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
             {/* Left Column - Text Content */}
-            <div className="space-y-6">
+            <div className="space-y-7">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-pink-50 rounded-lg shadow-sm border border-pink-100">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-sm font-medium text-amber-900">Freshly baked every morning</span>
+              <div className="inline-flex items-center gap-2 px-6 py-3 bg-[#fbeaec] rounded-2xl shadow border border-[#f8d6d6] text-[#a14d5a] font-semibold text-base">
+                <span className="inline-block w-3 h-3 bg-[#c23b5a] rounded-full"></span>
+                Freshly baked every morning
               </div>
 
               {/* Headline */}
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                <span className="text-amber-900">Taste the </span>
-                <span className="text-primary-500">Magic</span>
-                <span className="text-amber-900"> in Every Bite</span>
+              <h1 className="text-5xl md:text-6xl font-extrabold leading-tight tracking-tight text-[#7a5432]">
+                Taste the <span className="text-[#ff9800]">Magic</span> in Every Bite
               </h1>
 
               {/* Description */}
-              <p className="text-lg text-amber-900/80 leading-relaxed">
+              <p className="text-xl text-[#a78b6c] leading-relaxed max-w-xl">
                 Premium handcrafted cakes, pastries, and artisanal breads delivered straight to your doorstep. Made with love and the finest ingredients.
               </p>
 
@@ -90,72 +114,71 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Right Column - Featured Image */}
-            <div className="relative">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-                {featuredImage ? (
-                  <img 
-                    src={featuredImage} 
-                    alt="Featured bakery product" 
-                    className="w-full h-[400px] md:h-[500px] object-cover"
+            {/* Right Column - Admin Banner Image */}
+            <div className="relative flex justify-center items-center">
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl border-0">
+                {banners.length > 0 && banners[currentBanner] && banners[currentBanner].image ? (
+                  <img
+                    src={getImageUrl(banners[currentBanner].image)}
+                    alt={banners[currentBanner].title || 'Homepage Banner'}
+                    className="w-[480px] h-[380px] object-cover rounded-3xl transition-all duration-700"
+                    onMouseEnter={handleBannerMouseEnter}
+                    onMouseLeave={handleBannerMouseLeave}
                   />
                 ) : (
-                  <div className="w-full h-[400px] md:h-[500px] bg-gradient-to-br from-amber-200 to-amber-300 flex items-center justify-center">
-                    <span className="text-amber-700 text-lg">Featured Product</span>
+                  <div className="w-[480px] h-[380px] bg-gradient-to-br from-amber-200 to-amber-300 flex items-center justify-center rounded-3xl">
+                    <span className="text-amber-700 text-lg">No Banner Image</span>
                   </div>
                 )}
-                
-                {/* Eggless Badge Overlay */}
-                <div className="absolute bottom-6 left-6 bg-yellow-50/95 backdrop-blur-sm rounded-xl px-4 py-3 shadow-lg border border-yellow-200">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    <div>
-                      <div className="font-bold text-gray-800 text-sm">100% Eggless</div>
-                      <div className="text-xs text-gray-600">Options available</div>
-                    </div>
+                {/* Banner navigation dots */}
+                {banners.length > 1 && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    {banners.map((_, idx) => (
+                      <button
+                        key={idx}
+                        className={`w-3 h-3 rounded-full border border-white ${idx === currentBanner ? 'bg-white' : 'bg-gray-400 opacity-60'}`}
+                        style={{ transition: 'background 0.3s' }}
+                        onClick={() => setCurrentBanner(idx)}
+                        aria-label={`Go to banner ${idx + 1}`}
+                      />
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Banners */}
-      {banners.length > 0 && (
-        <div className="mb-8">
-          {banners.map((banner) => (
-            <Banner key={banner._id} banner={banner} />
-          ))}
-        </div>
-      )}
+      {/* Banners removed as requested */}
 
       {/* Categories */}
-      <section className="container mx-auto px-4 py-8">
-        <h2 className="text-2xl font-bold mb-6">Shop by Categories</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 py-10">
+        <h2 className="text-3xl font-extrabold mb-7 text-primary-800 tracking-tight">Shop by Categories</h2>
+        <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {categories.map((category) => (
             <CategoryCard key={category._id} category={category} />
           ))}
         </div>
       </section>
 
-      {/* Best Sellers */}
-      <section className="container mx-auto px-4 py-8 bg-gray-50">
-        <h2 className="text-2xl font-bold mb-6">Best Seller Products</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Best Sellers - Redesigned */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 py-16" style={{background:'#faf6f1', borderRadius:'2rem'}}>
+        <div className="mb-2">
+          <div className="uppercase text-[#a14d5a] font-bold text-sm mb-1 tracking-wider">Favorites</div>
+          <h2 className="text-4xl font-extrabold text-[#7a5432] mb-2 text-left">Best Sellers</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 mt-8">
           {bestsellers.map((product) => (
             <ProductCard key={product._id} product={product} />
           ))}
         </div>
-        <div className="text-center mt-8">
+        <div className="flex justify-end mt-8">
           <Link
             to="/products"
-            className="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            className="inline-flex items-center px-8 py-3 border border-[#7a5432] rounded-lg text-[#7a5432] font-bold text-xl hover:bg-[#f3e9de] transition"
           >
-            View All Products
+            View All <span className="ml-2">→</span>
           </Link>
         </div>
       </section>

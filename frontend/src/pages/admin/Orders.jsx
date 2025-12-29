@@ -92,6 +92,11 @@ const AdminOrders = () => {
                 <p className="text-sm text-gray-600">
                   Total: ₹{order.total}
                 </p>
+                <p className="text-sm text-gray-600">
+                  {order.deliveryDate && (
+                    <>Delivery Date: {new Date(order.deliveryDate).toLocaleDateString()}{order.deliveryTime ? ` at ${order.deliveryTime}` : ''}</>
+                  )}
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium mb-2">{order.orderStatus}</p>
