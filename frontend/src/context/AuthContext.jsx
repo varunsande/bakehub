@@ -10,10 +10,8 @@ export const useAuth = () => {
   return ctx;
 };
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
   withCredentials: true,
 });
 
@@ -22,83 +20,11 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      api.defaults.headers.common.Authorization = `Bearer ${token}`;
-      fetchUser();
-    } else {
-      setLoading(false);
-    }
+    setLoading(false);
   }, []);
 
-  const fetchUser = async () => {
-    try {
-      const res = await api.get("/auth/me");
-      setUser(res.data);
-    } catch {
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendOTP = async (email) => {
-    try {
-      await api.post("/auth/send-otp", { email });
-      toast.success("OTP sent");
-      return true;
-    } catch (err) {
-      toast.error(err.response?.data?.message || "OTP failed");
-      return false;
-    }
-  };
-
-  const verifyOTP = async (email, otp) => {
-    try {
-      const res = await api.post("/auth/verify-otp", { email, otp });
-      localStorage.setItem("accessToken", res.data.accessToken);
-      localStorage.setItem("refreshToken", res.data.refreshToken);
-      api.defaults.headers.common.Authorization = `Bearer ${res.data.accessToken}`;
-      setUser(res.data.user);
-      return true;
-    } catch {
-      toast.error("Invalid OTP");
-      return false;
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    delete api.defaults.headers.common.Authorization;
-    setUser(null);
-  };
-
-  api.interceptors.response.use(
-    (res) => res,
-    async (error) => {
-      const original = error.config;
-      if (error.response?.status === 401 && !original._retry) {
-        original._retry = true;
-        try {
-          const refreshToken = localStorage.getItem("refreshToken");
-          const res = await api.post("/auth/refresh-token", { refreshToken });
-          localStorage.setItem("accessToken", res.data.accessToken);
-          api.defaults.headers.common.Authorization = `Bearer ${res.data.accessToken}`;
-          original.headers.Authorization = `Bearer ${res.data.accessToken}`;
-          return api(original);
-        } catch {
-          logout();
-        }
-      }
-      return Promise.reject(error);
-    }
-  );
-
   return (
-    <AuthContext.Provider
-      value={{ user, loading, sendOTP, verifyOTP, logout, fetchUser }}
-    >
+    <AuthContext.Provider value={{ user, loading }}>
       {children}
     </AuthContext.Provider>
   );
