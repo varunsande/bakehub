@@ -45,22 +45,48 @@ if (smtpUser && smtpPass) {
       user: smtpUser,
       pass: smtpPass,
     },
+    // Connection timeout settings (important for production/cloud environments)
+    connectionTimeout: 60000, // 60 seconds (default is 2 seconds, too short for cloud)
+    greetingTimeout: 30000, // 30 seconds
+    socketTimeout: 60000, // 60 seconds
+    // Retry settings
+    maxConnections: 5,
+    maxMessages: 100,
+    // Pool connections for better performance
+    pool: true,
+    // Rate limiting
+    rateLimit: 14, // Limit to 14 messages per second
+    // Debug (only in development)
+    debug: process.env.NODE_ENV === 'development',
+    logger: process.env.NODE_ENV === 'development',
   };
 
   // For port 587 (STARTTLS), ensure TLS is properly configured
   if (smtpPort === 587 && !smtpSecure) {
     transporterConfig.requireTLS = true;
+    transporterConfig.tls = {
+      // Don't reject unauthorized certificates (some SMTP servers have self-signed certs)
+      rejectUnauthorized: false,
+      // Additional TLS options for better compatibility
+      minVersion: 'TLSv1.2',
+    };
   }
 
   transporter = nodemailer.createTransport(transporterConfig);
   
-  // Verify connection on startup
+  // Verify connection on startup (with timeout)
+  // Don't block startup if verification fails - it might be a temporary network issue
   transporter.verify((error, success) => {
     if (error) {
       console.error("⚠️  SMTP Connection Error:", error.message);
+      console.error("   This is a warning - emails will still be attempted to send.");
+      console.error("   If emails fail, check your SMTP settings and network connectivity.");
     } else {
       console.log("✓ SMTP server connection verified");
     }
+  }).catch((err) => {
+    // Verification timeout or error - don't crash the app
+    console.warn("⚠️  SMTP verification skipped:", err.message);
   });
 }
 
@@ -89,15 +115,32 @@ export const sendOTP = async (email, otp) => {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
+    // Send with timeout handling
+    const sendPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Email send timeout after 60 seconds')), 60000);
+    });
+
+    await Promise.race([sendPromise, timeoutPromise]);
 
     return { success: true };
   } catch (error) {
     console.error("OTP email error:", error);
+    
+    // Provide more helpful error messages
+    let errorMessage = error.message;
+    if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+      errorMessage = 'Connection timeout. The SMTP server took too long to respond. This might be a network issue or the server might be temporarily unavailable.';
+    } else if (error.code === 'ECONNREFUSED') {
+      errorMessage = 'Connection refused. Check your SMTP host and port settings.';
+    } else if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Check your SMTP username and password.';
+    }
+    
     return {
       success: false,
       error: "Failed to send OTP",
-      details: error.message,
+      details: errorMessage,
     };
   }
 };
@@ -128,15 +171,32 @@ export const sendOrderConfirmation = async (email, order) => {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
+    // Send with timeout handling
+    const sendPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Email send timeout after 60 seconds')), 60000);
+    });
+
+    await Promise.race([sendPromise, timeoutPromise]);
 
     return { success: true };
   } catch (error) {
     console.error("Order confirmation email error:", error);
+    
+    // Provide more helpful error messages
+    let errorMessage = error.message;
+    if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+      errorMessage = 'Connection timeout. The SMTP server took too long to respond.';
+    } else if (error.code === 'ECONNREFUSED') {
+      errorMessage = 'Connection refused. Check your SMTP host and port settings.';
+    } else if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Check your SMTP username and password.';
+    }
+    
     return {
       success: false,
       error: "Failed to send order confirmation",
-      details: error.message,
+      details: errorMessage,
     };
   }
 };
