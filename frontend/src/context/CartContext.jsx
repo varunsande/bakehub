@@ -21,14 +21,11 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    console.log('Cart items changed:', cartItems);
     localStorage.setItem('bakehub_cart', JSON.stringify(cartItems));
   }, [cartItems]);
 
   const addToCart = (product) => {
-    console.log('CartContext addToCart called with:', product);
     setCartItems((prev) => {
-      console.log('Previous cart items:', prev);
       const existing = prev.find(
         (item) =>
           item.productId === product.productId &&
@@ -37,20 +34,16 @@ export const CartProvider = ({ children }) => {
       );
 
       if (existing) {
-        const updated = prev.map((item) =>
+        return prev.map((item) =>
           item.productId === product.productId &&
           item.weight === product.weight &&
           item.isEggless === product.isEggless
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
-        console.log('Updated cart (existing item):', updated);
-        return updated;
       }
 
-      const newCart = [...prev, { ...product, quantity: 1 }];
-      console.log('Updated cart (new item):', newCart);
-      return newCart;
+      return [...prev, { ...product, quantity: 1 }];
     });
   };
 
@@ -67,7 +60,13 @@ export const CartProvider = ({ children }) => {
     );
   };
 
-  const updateQuantity = (productId, weight, isEggless, quantity, deliveryDate) => {
+  const updateQuantity = (
+    productId,
+    weight,
+    isEggless,
+    quantity,
+    deliveryDate
+  ) => {
     if (quantity <= 0) {
       removeFromCart(productId, weight, isEggless);
       return;
@@ -89,7 +88,10 @@ export const CartProvider = ({ children }) => {
   };
 
   const getTotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return cartItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
   };
 
   return (
@@ -100,11 +102,10 @@ export const CartProvider = ({ children }) => {
         removeFromCart,
         updateQuantity,
         clearCart,
-        getTotal
+        getTotal,
       }}
     >
       {children}
     </CartContext.Provider>
   );
 };
-
