@@ -24,10 +24,12 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ message: 'Valid email is required' });
     }
 
+    // Normalize email to lowercase for consistent storage
+    const normalizedEmail = email.toLowerCase();
     const otp = generateOTP();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-    otpStore.set(email, { otp, expiresAt });
+    otpStore.set(normalizedEmail, { otp, expiresAt });
 
     const result = await sendOTP(email, otp);
 
@@ -64,31 +66,38 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const storedData = otpStore.get(email);
+    // Normalize email to lowercase for consistent lookup
+    const normalizedEmail = email.toLowerCase();
+    const storedData = otpStore.get(normalizedEmail);
 
     if (!storedData) {
+      // Debug: Log available emails in store (for development only)
+      const availableEmails = Array.from(otpStore.keys());
+      console.log(`OTP verification failed - Email not found: ${normalizedEmail}`);
+      console.log(`Available emails in store: ${availableEmails.length > 0 ? availableEmails.join(', ') : 'none'}`);
       return res.status(400).json({ message: 'OTP not found or expired' });
     }
 
     if (Date.now() > storedData.expiresAt) {
-      otpStore.delete(email);
+      otpStore.delete(normalizedEmail);
       return res.status(400).json({ message: 'OTP expired' });
     }
 
     if (storedData.otp !== otp) {
+      console.log(`OTP mismatch for ${normalizedEmail}`);
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     // OTP verified, remove from store
-    otpStore.delete(email);
+    otpStore.delete(normalizedEmail);
 
     // Check if user exists
-    let user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       // Create new user
       user = new User({
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         role: 'customer'
       });
       await user.save();

@@ -2,8 +2,22 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env file FIRST - before importing any routes that might use env vars
+// Try backend directory first, then root directory
+const backendEnvPath = path.join(__dirname, '.env');
+const rootEnvPath = path.join(__dirname, '..', '.env');
+dotenv.config({ path: backendEnvPath });
+// Also load from root if backend .env doesn't exist (for flexibility)
+dotenv.config({ path: rootEnvPath, override: false });
+
+// Import routes AFTER environment variables are loaded
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
 import categoryRoutes from './routes/categories.js';
@@ -17,21 +31,12 @@ import deliveryPincodeRoutes from './routes/deliveryPincodes.js';
 import paymentRoutes from './routes/payments.js';
 import uploadRoutes from './routes/upload.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load .env file - try backend directory first, then root directory
-const backendEnvPath = path.join(__dirname, '.env');
-const rootEnvPath = path.join(__dirname, '..', '.env');
-dotenv.config({ path: backendEnvPath });
-// Also load from root if backend .env doesn't exist (for flexibility)
-dotenv.config({ path: rootEnvPath, override: false });
-
 const app = express();
 
 // Middleware
+app.use(morgan('dev')); // HTTP request logger
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: 'http://localhost:5173',
   credentials: true
 }));
 app.use(express.json());
