@@ -105,7 +105,7 @@ const AdminCategories = () => {
     if (!window.confirm('Are you sure you want to delete this category?')) return;
 
     try {
-      await axios.delete(`/categories/${id}`);
+      await axios.delete(`/api/categories/${id}`);
       toast.success('Category deleted');
       fetchCategories();
     } catch (error) {
