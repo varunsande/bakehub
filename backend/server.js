@@ -40,6 +40,8 @@ app.use(morgan('dev')); // HTTP request logger
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'https://sweethub.shop',
+  'https://www.sweethub.shop',
   process.env.FRONTEND_URL,
 ].filter(Boolean); // Remove any undefined values
 
