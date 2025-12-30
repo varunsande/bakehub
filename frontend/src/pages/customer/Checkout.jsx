@@ -646,7 +646,7 @@ const Checkout = () => {
                 />
                 <span>Cash on Delivery</span>
               </label>
-              <label className="flex items-center p-4 border rounded-lg cursor-pointer">
+              {/* <label className="flex items-center p-4 border rounded-lg cursor-pointer">
                 <input
                   type="radio"
                   name="payment"
@@ -656,7 +656,7 @@ const Checkout = () => {
                   className="mr-2"
                 />
                 <span>Razorpay (Online Payment)</span>
-              </label>
+              </label> */}
             </div>
           </div>
         </div>
