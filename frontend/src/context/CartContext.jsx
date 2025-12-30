@@ -21,11 +21,16 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    console.log('Cart items changed:', cartItems);
     localStorage.setItem('bakehub_cart', JSON.stringify(cartItems));
   }, [cartItems]);
 
   const addToCart = (product) => {
+    console.log('CartContext addToCart called with:', product);
+
     setCartItems((prev) => {
+      console.log('Previous cart items:', prev);
+
       const existing = prev.find(
         (item) =>
           item.productId === product.productId &&
@@ -34,16 +39,21 @@ export const CartProvider = ({ children }) => {
       );
 
       if (existing) {
-        return prev.map((item) =>
+        const updated = prev.map((item) =>
           item.productId === product.productId &&
           item.weight === product.weight &&
           item.isEggless === product.isEggless
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
+
+        console.log('Updated cart (existing item):', updated);
+        return updated;
       }
 
-      return [...prev, { ...product, quantity: 1 }];
+      const newCart = [...prev, { ...product, quantity: 1 }];
+      console.log('Updated cart (new item):', newCart);
+      return newCart;
     });
   };
 
@@ -77,7 +87,11 @@ export const CartProvider = ({ children }) => {
         item.productId === productId &&
         item.weight === weight &&
         item.isEggless === isEggless
-          ? { ...item, quantity, ...(deliveryDate ? { deliveryDate } : {}) }
+          ? {
+              ...item,
+              quantity,
+              ...(deliveryDate ? { deliveryDate } : {}),
+            }
           : item
       )
     );
